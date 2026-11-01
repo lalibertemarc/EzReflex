@@ -88,7 +88,15 @@ function ns.FindToken(name)
     if ns.emotes[upper] or not next(ns.emotes) then return upper end
 end
 
+-- What you can be answering: an emote, or LEVELUP for "levelup"/"level"/"ding".
+local function FindIncoming(name)
+    local cmd = Command(name)
+    if cmd == "levelup" or cmd == "level" or cmd == "ding" then return ns.LEVELUP end
+    return ns.FindToken(name)
+end
+
 local function Label(token)
+    if token == ns.LEVELUP then return "level-ups" end
     return "/" .. (ns.emotes[token] or token:lower())
 end
 
@@ -162,6 +170,7 @@ end
 -- Answers to an incoming emote, and where they come from.
 function ns.Answers(token, mood)
     if mood == "cold" then
+        if token == ns.LEVELUP and not EzReflexCharDB.cold then return Known(ns.COLD_LEVELUP), "cold set" end
         return Known(EzReflexCharDB.cold or ns.COLD), EzReflexCharDB.cold and "your cold set" or "cold set"
     end
     local own = EzReflexCharDB.reactions[token]
@@ -176,6 +185,7 @@ for _, entry in ipairs(ns.INCOMING) do
     ns.incoming[#ns.incoming + 1] = entry[1]
     ns.isIncoming[entry[1]] = true
 end
+ns.isIncoming[ns.LEVELUP] = true
 
 local function Pick(list)
     return list[math.random(#list)]
@@ -194,22 +204,23 @@ local function Moving()
     return GetUnitSpeed("player") > 0 or (IsFalling and IsFalling())
 end
 
--- Why you can't answer anyone right now, or nil.
+-- Why you can't answer anyone right now, or nil; true as well when it's something that passes (combat, moving).
 local function StateBlocked()
     local db = EzReflexDB
     if not db.enabled then return "EzReflex is off" end
-    if db.combat and (InCombatLockdown() or UnitAffectingCombat("player")) then return "you're in combat" end
     if UnitIsDeadOrGhost("player") then return "you're dead" end
-    if db.moving and Moving() then return "you're moving" end
     if ChatLocked() then return "emotes are locked here" end
+    if db.combat and (InCombatLockdown() or UnitAffectingCombat("player")) then return "you're in combat", true end
+    if db.moving and Moving() then return "you're moving", true end
 end
 
--- Why you wouldn't answer this emote from this person right now, or nil.
+-- Why you wouldn't answer this emote from this person right now, or nil. A level-up answer waits out combat
+-- and moving instead (see Answer).
 local function Blocked(token, key, now)
     local db = EzReflexDB
     if db.emotes[token] == false then return "answers to " .. Label(token) .. " are switched off" end
-    local reason = StateBlocked()
-    if reason then return reason end
+    local reason, passes = StateBlocked()
+    if reason and not (passes and token == ns.LEVELUP) then return reason end
     if pending then return "already answering someone" end
     if now - lastAnswer < db.cooldown then
         return format("cooldown (%ds left)", math.ceil(db.cooldown - (now - lastAnswer)))
@@ -236,19 +247,24 @@ local function OwnEmote(text)
     end
 end
 
-local function Answer(token, sender, key, answer)
+-- Emotes answer at name after a short pause and remembers it for the guards. wait: seconds to keep trying
+-- while you're busy (combat, moving) instead of dropping it.
+local function Answer(key, name, answer, echo, wait)
     pending = true
-    C_Timer.After(ns.DELAY_MIN + math.random() * (ns.DELAY_MAX - ns.DELAY_MIN), function()
+    local giveUp = GetTime() + (wait or 0)
+    local function Try()
+        if StateBlocked() then
+            if GetTime() < giveUp then return C_Timer.After(1, Try) end
+            pending = nil
+            return
+        end
         pending = nil
-        if StateBlocked() then return end
-        local name = FirstName(sender)
         if PerformEmote(answer, name) == false then return end
         local now = GetTime()
         lastAnswer, answered[key], sent[key] = now, now, now
-        if EzReflexDB.echo then
-            Echo(format("You %s back at %s (they %s).", Label(answer), name, Label(token)))
-        end
-    end)
+        if EzReflexDB.echo then Echo(echo) end
+    end
+    C_Timer.After(ns.DELAY_MIN + math.random() * (ns.DELAY_MAX - ns.DELAY_MIN), Try)
 end
 
 local function OnTextEmote(text, sender, guid)
@@ -266,7 +282,54 @@ local function OnTextEmote(text, sender, guid)
     if math.random(100) > EzReflexDB.chance then return end
     local answers = ns.Answers(token, ns.Mood(key))
     if #answers == 0 then return end
-    Answer(token, sender, key, Pick(answers))
+    local answer, name = Pick(answers), FirstName(sender)
+    Answer(key, name, answer, format("You %s back at %s (they %s).", Label(answer), name, Label(token)))
+end
+
+---------------------------------------------------------------------------
+-- Level-ups. The game only tells addons the level of units they have a token for, so EzReflex looks at your
+-- group and target, keeps the last level it saw per person (this session) and counts a rise from that as a
+-- level-up. Its first look at someone never is one.
+---------------------------------------------------------------------------
+local levels = {} -- key -> last level seen
+
+local function PlayerUnit(unit)
+    if not UnitExists(unit) or not UnitIsPlayer(unit) or UnitIsUnit(unit, "player") then return end
+    local name, level = UnitName(unit), UnitLevel(unit)
+    if issecret(name) or issecret(level) or type(name) ~= "string" or type(level) ~= "number" then return end
+    if name == "" or name == UNKNOWNOBJECT or level <= 0 then return end -- not loaded yet, or "??" level
+    return ns.Key(name), name, level
+end
+
+local function Remember(unit)
+    local key, _, level = PlayerUnit(unit)
+    if key then levels[key] = level end
+end
+
+local function RememberGroup()
+    local prefix = IsInRaid() and "raid" or "party"
+    for i = 1, GetNumGroupMembers() do Remember(prefix .. i) end
+end
+
+-- Close enough to see your emote: in sight, and within ~28 yd where addons may check (out of combat).
+local function Near(unit)
+    if not UnitIsVisible(unit) then return false end
+    return InCombatLockdown() or CheckInteractDistance(unit, 4) ~= false
+end
+
+local function OnUnitLevel(unit)
+    -- Only units EzReflex keeps up to date; a stale level from a mouseover could look like a level-up.
+    if unit ~= "target" and not unit:find("^party%d") and not unit:find("^raid%d") then return end
+    local key, name, level = PlayerUnit(unit)
+    if not key then return end
+    local old = levels[key]
+    levels[key] = level -- the same person under two tokens (target and party1) only counts once
+    if not old or level <= old or not Near(unit) then return end
+    if Blocked(ns.LEVELUP, key, GetTime()) then return end
+    local answers = ns.Answers(ns.LEVELUP, ns.Mood(key))
+    if #answers == 0 then return end
+    local answer, first = Pick(answers), FirstName(name)
+    Answer(key, first, answer, format("You %s %s (level %d).", Label(answer), first, level), ns.LEVEL_WAIT)
 end
 
 ---------------------------------------------------------------------------
@@ -279,7 +342,7 @@ local function Help()
     Print("/reflex cd <sec> - between any two answers;  cd person <sec>;  cd pingpong <sec>")
     Print("/reflex list - what you answer to what")
     Print("/reflex set <emote> <answer1,answer2...>|default|none - this character's answers (set cold ... for rivals)")
-    Print("/reflex toggle <emote> - switch answering one emote on or off")
+    Print("/reflex toggle <emote> - switch answering one emote on or off (toggle levelup: group's and target's level-ups)")
     Print("/reflex reset - drop this character's own answers")
     Print("/reflex test <emote or emote line> [name] - what you'd do, sends nothing")
     Print("/reflex quiet - hide or show the (Reflex) chat echo;  /reflex config - options")
@@ -287,7 +350,7 @@ end
 
 local function List()
     Print("Incoming -> answers (repeats weigh more):")
-    for _, token in ipairs(ns.incoming) do
+    local function Line(token)
         local answers, from = ns.Answers(token)
         local line = format("%s -> %s", Label(token), #answers > 0 and Labels(answers) or "nothing")
         if from == "yours" then line = line .. " |cff7fd4ff(yours)|r" end
@@ -295,6 +358,8 @@ local function List()
         if ns.WARM[token] and from ~= "yours" then line = line .. " |cff9d9d9dfriends: " .. Labels(Known(ns.WARM[token])) .. "|r" end
         Print(line)
     end
+    for _, token in ipairs(ns.incoming) do Line(token) end
+    Line(ns.LEVELUP)
     Print("Rivals and enemies (EzAcquaintances): " .. Labels(Known(EzReflexCharDB.cold or ns.COLD)))
 end
 ns.List = List
@@ -313,7 +378,7 @@ local function Set(rest)
     if not what then return Print("Usage: /reflex set <emote> <answer1,answer2...>|default|none") end
     arg = Trim(arg):lower()
     local cold = what:lower() == "cold"
-    local token = not cold and ns.FindToken(what)
+    local token = not cold and FindIncoming(what)
     if not cold and not token then return Print("No emote called " .. what .. ".") end
     if token and not ns.isIncoming[token] then
         return Print("EzReflex can't tell when someone does " .. Label(token) .. " at you, so it has nothing to answer.")
@@ -342,7 +407,7 @@ local function Test(rest)
     rest = Trim(rest)
     if rest == "" then return Print("Usage: /reflex test <emote or a line like \"Bob bows before you.\"> [name]") end
     local first, name = rest:match("^(%S+)%s*(%S*)$")
-    local token = first and ns.FindToken(first)
+    local token = first and FindIncoming(first)
     local sender
     if token then
         sender = name ~= "" and name or nil
@@ -355,16 +420,19 @@ local function Test(rest)
     local mood, why = nil, nil
     if key then mood, why = ns.Mood(key) end
     local answers, from = ns.Answers(token, mood)
-    Print(format("%s at you -> %s (%s)%s.", Label(token), #answers > 0 and Labels(answers) or "nothing", from,
-        mood and format(", %s is %s: %s", sender, mood, why) or ""))
+    local levelUp = token == ns.LEVELUP
+    Print(format("%s -> %s (%s)%s.", levelUp and "A level-up in your group or target" or Label(token) .. " at you",
+        #answers > 0 and Labels(answers) or "nothing", from, mood and format(", %s is %s: %s", sender, mood, why) or ""))
     local reason = Blocked(token, key, GetTime())
     if #answers == 0 then
         Print("You wouldn't answer it.")
     elseif reason then
         Print("Right now you wouldn't answer: " .. reason .. ".")
     else
-        Print(format("Right now you'd answer %s after a short pause (%d%% chance). Nothing sent.",
-            Label(Pick(answers)), EzReflexDB.chance))
+        local busy = levelUp and StateBlocked() -- level-ups wait it out, and always get an answer
+        Print(format("Right now you'd answer %s %s%s. Nothing sent.", Label(Pick(answers)),
+            busy and format("once you're free (%s; waits up to %ds)", busy, ns.LEVEL_WAIT) or "after a short pause",
+            levelUp and "" or format(" (%d%% chance)", EzReflexDB.chance)))
     end
 end
 
@@ -400,7 +468,7 @@ local COMMANDS = {
     list = List,
     set = Set,
     toggle = function(rest)
-        local token = ns.FindToken(Trim(rest))
+        local token = FindIncoming(Trim(rest))
         if not token then return Print("Usage: /reflex toggle <emote>") end
         EzReflexDB.emotes[token] = EzReflexDB.emotes[token] == false
         Print(format("Answers to %s: %s.", Label(token), EzReflexDB.emotes[token] and "on" or "off"))
@@ -439,6 +507,12 @@ ev:SetScript("OnEvent", function(self, event, ...)
     if event == "CHAT_MSG_TEXT_EMOTE" then
         local text, sender, _, _, _, _, _, _, _, _, _, guid = ...
         return OnTextEmote(text, sender, guid)
+    elseif event == "UNIT_LEVEL" then
+        return OnUnitLevel(...)
+    elseif event == "PLAYER_TARGET_CHANGED" then
+        return Remember("target")
+    elseif event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
+        return RememberGroup()
     end
     EzReflexDB = EzReflexDB or {}
     EzReflexCharDB = EzReflexCharDB or {}
@@ -449,13 +523,18 @@ ev:SetScript("OnEvent", function(self, event, ...)
     EzReflexCharDB.reactions = EzReflexCharDB.reactions or {}
     BuildCatalog()
     Compile()
-    for _, token in ipairs(ns.incoming) do
+    for token in pairs(ns.isIncoming) do
         if EzReflexDB.emotes[token] == nil then EzReflexDB.emotes[token] = true end
     end
     ns.BuildSettings()
+    -- Level-ups don't depend on the client's language.
+    self:RegisterEvent("UNIT_LEVEL")
+    self:RegisterEvent("PLAYER_TARGET_CHANGED")
+    self:RegisterEvent("GROUP_ROSTER_UPDATE")
+    self:RegisterEvent("PLAYER_ENTERING_WORLD")
     if ns.LOCALES[GetLocale()] then
         self:RegisterEvent("CHAT_MSG_TEXT_EMOTE")
     else
-        Print("only knows English emote lines for now, so it stays idle on this client.")
+        Print("only knows English emote lines for now, so it only answers level-ups on this client.")
     end
 end)

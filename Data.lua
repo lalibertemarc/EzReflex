@@ -17,6 +17,11 @@ ns.DEFAULTS = {
 
 ns.DELAY_MIN, ns.DELAY_MAX = 0.6, 1.5 -- seconds before answering, picked at random so it looks human
 ns.HEARD_TIME = 120                    -- seconds someone stays "recent" after emoting at you (for the ping-pong guard)
+ns.LEVEL_WAIT = 20                     -- seconds a level-up answer waits for you to leave combat or stop moving
+
+-- A group member or your target levelling up is answered like an emote under this made-up token (it has its
+-- own on/off switch in EzReflexDB.emotes and /reflex set levelup ...).
+ns.LEVELUP = "LEVELUP"
 
 -- The client has no Lua strings for "%s bows before you." (they come from the server's emote text data, not
 -- GlobalStrings), so incoming emotes are recognised by these English phrases, first match wins. Each phrase
@@ -142,6 +147,7 @@ ns.REACTIONS = {
     COMFORT = { "THANK", "HUG" },
     APOLOGIZE = { "NOD", "SHRUG" },
     SNUB = { "SHRUG", "SNUB" },
+    LEVELUP = { "CONGRATULATE", "CONGRATULATE", "CHEER", "APPLAUD" },
 }
 
 -- EzAcquaintances (optional, read only): people in your Book with these tags or relationships get the cold set
@@ -153,6 +159,7 @@ ns.WARM_TAGS = { friend = true, ally = true, family = true, flirt = true }
 ns.WARM_RELS = { friend = true, ["close friend"] = true, ally = true, family = true, sweetheart = true }
 
 ns.COLD = { "GLARE", "GLARE", "SNUB", "ROLLEYES", "SCOFF", "RUDE" }
+ns.COLD_LEVELUP = { "GOLFCLAP", "GOLFCLAP", "SHRUG" } -- a rival's level-up, unless you set your own cold set
 
 ns.WARM = {
     BOW = { "BOW", "SMILE" },
@@ -165,4 +172,5 @@ ns.WARM = {
     INSULT = { "LAUGH", "RUDE" },
     SLAP = { "GASP", "CRY" },
     BYE = { "BYE", "HUG" },
+    LEVELUP = { "CHEER", "CONGRATULATE", "HUG" },
 }

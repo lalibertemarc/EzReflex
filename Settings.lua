@@ -31,6 +31,10 @@ function ns.BuildSettings()
     Header("Answering")
     Check("enabled", "Answer emotes", "When a player does a text emote at you (/bow, /wave, /hug...), your character answers with one of its own.")
     Slider("chance", "Chance", "How often you answer an emote aimed at you.", 0, 100, 5, Percent)
+    local levelUp = Settings.RegisterAddOnSetting(category, "EZREFLEX_IN_LEVELUP", ns.LEVELUP, db.emotes,
+        Settings.VarType.Boolean, "Cheer level-ups", true)
+    Settings.CreateCheckbox(category, levelUp,
+        "When someone in your group, or your target, levels up near you, your character congratulates them (/congratulate, /cheer...). Waits out combat; the chance setting doesn't apply. Change the answers with /reflex set levelup <answers>.")
     Check("echo", "Chat echo", "Prints \"(Reflex) You /bow back at Bob.\" in your chat (only you see it), so you know it was EzReflex.")
     Check("acquaintances", "Friends and rivals (EzAcquaintances)",
         "With EzAcquaintances loaded, people in its Book tagged rival, enemy, suspicious or liar get a cold answer (/glare, /snub, /rude...), and friends, allies and family a warmer one.")

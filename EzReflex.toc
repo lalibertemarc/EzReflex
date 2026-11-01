@@ -1,0 +1,13 @@
+## Interface: 16001, 11509
+## Title: EzReflex
+## Notes: When a player emotes at you (/bow, /wave, /hug...), your character answers with an emote of its own.
+## Author: Marc
+## Version: @project-version@
+## IconTexture: Interface\Icons\Ability_Warrior_BattleShout
+## SavedVariables: EzReflexDB
+## SavedVariablesPerCharacter: EzReflexCharDB
+## OptionalDeps: EzAcquaintances
+
+Data.lua
+Settings.lua
+Core.lua

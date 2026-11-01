@@ -1,0 +1,28 @@
+std = "lua51"
+max_line_length = false
+self = false
+
+globals = {
+    "EzReflexDB",
+    "EzReflexCharDB",
+    "SLASH_EZREFLEX1",
+    "SLASH_EZREFLEX2",
+    "SlashCmdList",
+}
+
+read_globals = {
+    -- Lua / WoW string and table helpers
+    "format", "strlower", "wipe",
+    -- Frames & UI
+    "CreateFrame", "DEFAULT_CHAT_FRAME",
+    -- Settings panel
+    "Settings", "CreateSettingsListSectionHeaderInitializer", "CreateSettingsButtonInitializer",
+    "MinimalSliderWithSteppersMixin",
+    -- Namespaced APIs
+    "C_ChatInfo", "C_Timer", "issecretvalue",
+    -- Global APIs
+    "GetBuildInfo", "GetLocale", "GetTime", "GetUnitSpeed", "IsFalling", "InCombatLockdown",
+    "UnitAffectingCombat", "UnitIsDeadOrGhost", "UnitExists", "UnitName", "DoEmote", "MAXEMOTEINDEX",
+    -- Other addons (read only)
+    "EzAcquaintancesCharDB",
+}

@@ -31,16 +31,19 @@ function ns.BuildSettings()
     Header("Answering")
     Check("enabled", "Answer emotes", "When a player does a text emote at you (/bow, /wave, /hug...), your character answers with one of its own.")
     Slider("chance", "Chance", "How often you answer an emote aimed at you.", 0, 100, 5, Percent)
-    local levelUp = Settings.RegisterAddOnSetting(category, "EZREFLEX_IN_LEVELUP", ns.LEVELUP, db.emotes,
-        Settings.VarType.Boolean, "Cheer level-ups", true)
-    Settings.CreateCheckbox(category, levelUp,
-        "When someone in your group, or your target, levels up near you, your character congratulates them (/congratulate, /cheer...). Waits out combat; the chance setting doesn't apply. Change the answers with /reflex set levelup <answers>.")
     Check("echo", "Chat echo", "Prints \"(Reflex) You /bow back at Bob.\" in your chat (only you see it), so you know it was EzReflex.")
     Check("acquaintances", "Friends and rivals (EzAcquaintances)",
         "With EzAcquaintances loaded, people in its Book tagged rival, enemy, suspicious or liar get a cold answer (/glare, /snub, /rude...), and friends, allies and family a warmer one.")
 
+    Header("Your group")
+    for _, event in ipairs(ns.EVENTS) do
+        local setting = Settings.RegisterAddOnSetting(category, "EZREFLEX_IN_" .. event.token, event.token, db.emotes,
+            Settings.VarType.Boolean, event.title, true)
+        Settings.CreateCheckbox(category, setting, event.tip .. " Answers in combat too; waits while you're moving. The chance setting doesn't apply.")
+    end
+
     Header("Holding back")
-    Check("combat", "Not in combat", "Stay quiet while you're in combat.")
+    Check("combat", "Not in combat", "Don't answer emotes while you're in combat. Level-ups and Questie lines are answered in combat anyway.")
     Check("moving", "Not while moving", "Stay quiet while you move: most emotes don't play their animation on the run.")
     Slider("cooldown", "Cooldown", "Shortest time between any two answers.", 0, 60, 1, Seconds)
     Slider("personCooldown", "Per-person cooldown", "Shortest time before you answer the same person again.", 0, 300, 5, Seconds)

@@ -9,7 +9,7 @@ ns.DEFAULTS = {
     cooldown = 8,          -- seconds between any two answers
     personCooldown = 30,   -- seconds before you answer the same person again
     pingPong = 20,         -- ignore someone's emote this soon after you emoted at them (stops two EzReflex users looping)
-    combat = true,         -- stay quiet in combat
+    combat = true,         -- stay quiet in combat (emotes only; group events answer anyway)
     moving = true,         -- stay quiet while moving (most emotes don't animate on the run)
     echo = true,           -- "(Reflex) You /bow back at Bob." in your chat
     acquaintances = true,  -- warm/cold answers from EzAcquaintances tags, when it's loaded
@@ -17,11 +17,51 @@ ns.DEFAULTS = {
 
 ns.DELAY_MIN, ns.DELAY_MAX = 0.6, 1.5 -- seconds before answering, picked at random so it looks human
 ns.HEARD_TIME = 120                    -- seconds someone stays "recent" after emoting at you (for the ping-pong guard)
-ns.LEVEL_WAIT = 20                     -- seconds a level-up answer waits for you to leave combat or stop moving
+ns.EVENT_WAIT = 20                     -- seconds an answer to a group event waits for you to stop moving
 
--- A group member or your target levelling up is answered like an emote under this made-up token (it has its
--- own on/off switch in EzReflexDB.emotes and /reflex set levelup ...).
+-- Group events: things that happen near you rather than emotes at you, answered like emotes under made-up
+-- tokens. Each has its own on/off switch in EzReflexDB.emotes and answers set with /reflex set <any of
+-- names> ...; they're answered in combat too, wait out moving, and the chance setting doesn't apply.
+-- echo: what they did, for the chat echo (%s = the quest).
 ns.LEVELUP = "LEVELUP"
+ns.EVENTS = {
+    { token = "LEVELUP", label = "level-ups", names = { "levelup", "level", "ding" },
+      what = "A level-up in your group or target", title = "Cheer level-ups",
+      tip = "When someone in your group, or your target, levels up near you, your character congratulates them (/congratulate, /cheer...). Change the answers with /reflex set levelup <answers>." },
+    { token = "OBJECTIVE", label = "objectives done", names = { "objective" }, echo = "finished an objective of %s",
+      what = "A group member finishing a quest objective (Questie)", title = "Quest objectives (Questie)",
+      tip = "When someone in your group running Questie finishes a quest objective near you, your character claps or nods. Questie sends these to your party unless they switched it off. Change the answers with /reflex set objective <answers>." },
+    { token = "QUESTITEM", label = "quest items found", names = { "questitem", "item" }, echo = "found an item that starts %s",
+      what = "A group member looting an item that starts a quest (Questie)", title = "Quest-starting items (Questie)",
+      tip = "When someone in your group running Questie loots an item that starts a quest near you, your character gasps or nods. Questie sends these to your party unless they switched it off. Change the answers with /reflex set item <answers>." },
+    { token = "QUESTDONE", label = "quests done", names = { "questdone", "quest", "complete" }, echo = "turned in %s",
+      what = "A group member turning in a quest (Questie)", title = "Cheer finished quests (Questie)",
+      tip = "When someone in your group running Questie turns in a quest near you, your character cheers them. They have to switch on Questie's \"Quest completed\" announce. Change the answers with /reflex set quest <answers>." },
+    { token = "QUESTDROP", label = "quests dropped", names = { "questdrop", "abandon" }, echo = "abandoned %s",
+      what = "A group member abandoning a quest (Questie)", title = "Quests abandoned (Questie)",
+      tip = "When someone in your group running Questie abandons a quest near you, your character shrugs or sighs. They have to switch on Questie's \"Quest abandoned\" announce. Change the answers with /reflex set abandon <answers>." },
+    { token = "QUESTTAKE", label = "quests taken", names = { "questtake", "accept" }, echo = "took %s",
+      what = "A group member taking a quest (Questie)", title = "Quests taken (Questie)",
+      tip = "When someone in your group running Questie accepts a quest near you, your character nods. They have to switch on Questie's \"Quest accepted\" announce. Change the answers with /reflex set accept <answers>." },
+}
+
+-- Questie's group announces are plain party/raid chat: "{rt1} Questie: Quest Completed: [link]". Questie
+-- sends objectives and quest-starting items by default; completed/accepted/abandoned only when the sender
+-- switches them on. The marker is {rt1} ({звезда} from ruRU, "Questie :" from frFR); the rest is in the
+-- sender's language, and only English is known here. First match wins.
+ns.QUESTIE_PREFIX = "^{[^}]+}%s*Questie%s?:%s*"
+ns.QUESTIE = {
+    { "QUESTDONE", "^Quest Completed:" },
+    { "QUESTTAKE", "^Quest Accepted:" },
+    { "QUESTDROP", "^Quest Abandoned:" },
+    { "QUESTITEM", "^Picked up " }, -- "Picked up [item] which starts [link]!"
+    { "OBJECTIVE", " for .+!$" }, -- "Kobold Vermin slain: 10/10 for [link]!"
+}
+-- Instance chat may not exist on every client; those are registered under pcall.
+ns.QUESTIE_CHANNELS = {
+    "CHAT_MSG_PARTY", "CHAT_MSG_PARTY_LEADER", "CHAT_MSG_RAID", "CHAT_MSG_RAID_LEADER",
+    "CHAT_MSG_INSTANCE_CHAT", "CHAT_MSG_INSTANCE_CHAT_LEADER",
+}
 
 -- The client has no Lua strings for "%s bows before you." (they come from the server's emote text data, not
 -- GlobalStrings), so incoming emotes are recognised by these English phrases, first match wins. Each phrase
@@ -148,6 +188,11 @@ ns.REACTIONS = {
     APOLOGIZE = { "NOD", "SHRUG" },
     SNUB = { "SHRUG", "SNUB" },
     LEVELUP = { "CONGRATULATE", "CONGRATULATE", "CHEER", "APPLAUD" },
+    QUESTDONE = { "CHEER", "CHEER", "CONGRATULATE", "APPLAUD" },
+    QUESTDROP = { "SHRUG", "SHRUG", "SIGH", "PITY" },
+    QUESTTAKE = { "NOD", "NOD", "READY" },
+    OBJECTIVE = { "CLAP", "NOD", "CHEER" },
+    QUESTITEM = { "GASP", "NOD", "CHEER" },
 }
 
 -- EzAcquaintances (optional, read only): people in your Book with these tags or relationships get the cold set
@@ -159,7 +204,15 @@ ns.WARM_TAGS = { friend = true, ally = true, family = true, flirt = true }
 ns.WARM_RELS = { friend = true, ["close friend"] = true, ally = true, family = true, sweetheart = true }
 
 ns.COLD = { "GLARE", "GLARE", "SNUB", "ROLLEYES", "SCOFF", "RUDE" }
-ns.COLD_LEVELUP = { "GOLFCLAP", "GOLFCLAP", "SHRUG" } -- a rival's level-up, unless you set your own cold set
+-- A rival's group events, unless you set your own cold set.
+ns.COLD_EVENTS = {
+    LEVELUP = { "GOLFCLAP", "GOLFCLAP", "SHRUG" },
+    QUESTDONE = { "GOLFCLAP", "GOLFCLAP", "SHRUG" },
+    QUESTDROP = { "LAUGH", "GOLFCLAP" },
+    QUESTTAKE = { "SHRUG" },
+    OBJECTIVE = { "GOLFCLAP", "SHRUG" },
+    QUESTITEM = { "SHRUG" },
+}
 
 ns.WARM = {
     BOW = { "BOW", "SMILE" },
@@ -173,4 +226,6 @@ ns.WARM = {
     SLAP = { "GASP", "CRY" },
     BYE = { "BYE", "HUG" },
     LEVELUP = { "CHEER", "CONGRATULATE", "HUG" },
+    QUESTDONE = { "CHEER", "HIGHFIVE", "HUG" },
+    QUESTDROP = { "COMFORT", "SHRUG" },
 }

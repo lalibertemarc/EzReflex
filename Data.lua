@@ -24,10 +24,14 @@ ns.EVENT_WAIT = 20                     -- seconds an answer to a group event wai
 -- names> ...; they're answered in combat too, wait out moving, and the chance setting doesn't apply.
 -- echo: what they did, for the chat echo (%s = the quest).
 ns.LEVELUP = "LEVELUP"
+ns.DEATH = "DEATH"
 ns.EVENTS = {
     { token = "LEVELUP", label = "level-ups", names = { "levelup", "level", "ding" },
       what = "A level-up in your group or target", title = "Cheer level-ups",
       tip = "When someone in your group, or your target, levels up near you, your character congratulates them (/congratulate, /cheer...). Change the answers with /reflex set levelup <answers>." },
+    { token = "DEATH", label = "deaths", names = { "death", "died", "dead" },
+      what = "A group member dying", title = "Mourn the fallen",
+      tip = "When someone in your group dies near you, your character gasps, cries or salutes them (with EzAcquaintances, friends are mourned and rivals laughed at). Change the answers with /reflex set death <answers>." },
     { token = "OBJECTIVE", label = "objectives done", names = { "objective" }, echo = "finished an objective of %s",
       what = "A group member finishing a quest objective (Questie)", title = "Quest objectives (Questie)",
       tip = "When someone in your group running Questie finishes a quest objective near you, your character claps or nods. Questie sends these to your party unless they switched it off. Change the answers with /reflex set objective <answers>." },
@@ -188,6 +192,7 @@ ns.REACTIONS = {
     APOLOGIZE = { "NOD", "SHRUG" },
     SNUB = { "SHRUG", "SNUB" },
     LEVELUP = { "CONGRATULATE", "CONGRATULATE", "CHEER", "APPLAUD" },
+    DEATH = { "GASP", "GASP", "CRY", "SIGH", "SALUTE" },
     QUESTDONE = { "CHEER", "CHEER", "CONGRATULATE", "APPLAUD" },
     QUESTDROP = { "SHRUG", "SHRUG", "SIGH", "PITY" },
     QUESTTAKE = { "NOD", "NOD", "READY" },
@@ -207,6 +212,7 @@ ns.COLD = { "GLARE", "GLARE", "SNUB", "ROLLEYES", "SCOFF", "RUDE" }
 -- A rival's group events, unless you set your own cold set.
 ns.COLD_EVENTS = {
     LEVELUP = { "GOLFCLAP", "GOLFCLAP", "SHRUG" },
+    DEATH = { "LAUGH", "LAUGH", "POINT", "GIGGLE" },
     QUESTDONE = { "GOLFCLAP", "GOLFCLAP", "SHRUG" },
     QUESTDROP = { "LAUGH", "GOLFCLAP" },
     QUESTTAKE = { "SHRUG" },
@@ -226,6 +232,7 @@ ns.WARM = {
     SLAP = { "GASP", "CRY" },
     BYE = { "BYE", "HUG" },
     LEVELUP = { "CHEER", "CONGRATULATE", "HUG" },
+    DEATH = { "CRY", "CRY", "MOURN", "KNEEL" }, -- MOURN is left out where the client has no such emote
     QUESTDONE = { "CHEER", "HIGHFIVE", "HUG" },
     QUESTDROP = { "COMFORT", "SHRUG" },
 }

@@ -24,7 +24,7 @@ read_globals = {
     "GetBuildInfo", "GetLocale", "GetTime", "GetUnitSpeed", "IsFalling", "InCombatLockdown",
     "UnitAffectingCombat", "UnitIsDeadOrGhost", "UnitExists", "UnitName", "DoEmote", "MAXEMOTEINDEX",
     "UnitIsPlayer", "UnitIsUnit", "UnitLevel", "UnitIsVisible", "CheckInteractDistance", "IsInRaid",
-    "GetNumGroupMembers", "UNKNOWNOBJECT",
+    "GetNumGroupMembers", "UNKNOWNOBJECT", "UnitIsFeignDeath",
     -- Other addons (read only)
     "EzAcquaintancesCharDB",
 }

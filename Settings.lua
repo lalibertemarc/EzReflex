@@ -43,7 +43,7 @@ function ns.BuildSettings()
     end
 
     Header("Holding back")
-    Check("combat", "Not in combat", "Don't answer emotes while you're in combat. Level-ups and Questie lines are answered in combat anyway.")
+    Check("combat", "Not in combat", "Don't answer emotes while you're in combat. Level-ups, deaths and Questie lines are answered in combat anyway.")
     Check("moving", "Not while moving", "Stay quiet while you move: most emotes don't play their animation on the run.")
     Slider("cooldown", "Cooldown", "Shortest time between any two answers.", 0, 60, 1, Seconds)
     Slider("personCooldown", "Per-person cooldown", "Shortest time before you answer the same person again.", 0, 300, 5, Seconds)

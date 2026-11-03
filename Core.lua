@@ -313,9 +313,14 @@ local function Remember(unit)
     if key then levels[key] = level end
 end
 
-local function RememberGroup()
+local function ForGroup(fn)
     local prefix = IsInRaid() and "raid" or "party"
-    for i = 1, GetNumGroupMembers() do Remember(prefix .. i) end
+    for i = 1, GetNumGroupMembers() do fn(prefix .. i) end
+end
+
+-- Only units EzReflex keeps up to date; a stale state from a mouseover could look like a change.
+local function GroupToken(unit)
+    return unit:find("^party%d") or unit:find("^raid%d")
 end
 
 -- Close enough to see your emote: in sight, and within ~28 yd where addons may check (out of combat).
@@ -325,8 +330,7 @@ local function Near(unit)
 end
 
 local function OnUnitLevel(unit)
-    -- Only units EzReflex keeps up to date; a stale level from a mouseover could look like a level-up.
-    if unit ~= "target" and not unit:find("^party%d") and not unit:find("^raid%d") then return end
+    if unit ~= "target" and not GroupToken(unit) then return end
     local key, name, level = PlayerUnit(unit)
     if not key then return end
     local old = levels[key]
@@ -337,6 +341,47 @@ local function OnUnitLevel(unit)
     if #answers == 0 then return end
     local answer, first = Pick(answers), FirstName(name)
     Answer(key, first, answer, format("You %s %s (level %d).", Label(answer), first, level), true)
+end
+
+---------------------------------------------------------------------------
+-- Deaths in your group. The combat log is off limits on Forever, so EzReflex watches group members' health
+-- and flags, keeps whether each was dead when it last looked and counts going from alive to dead as a death.
+-- Its first look at someone never is one, nor is a feigned death or turning into a ghost.
+---------------------------------------------------------------------------
+local dead = {} -- key -> whether they were dead when last seen
+
+-- Whether this unit is dead now, or nil when the game won't say.
+local function IsDead(unit)
+    local isDead = UnitIsDeadOrGhost(unit)
+    if issecret(isDead) then return end
+    if isDead and UnitIsFeignDeath then
+        local feign = UnitIsFeignDeath(unit)
+        if issecret(feign) then return end
+        if feign then return false end
+    end
+    return isDead and true or false
+end
+
+local function RememberDeath(unit)
+    local key = PlayerUnit(unit)
+    local isDead = key and IsDead(unit)
+    if isDead ~= nil then dead[key] = isDead end
+end
+
+local function OnUnitHealth(unit)
+    if not GroupToken(unit) then return end
+    local key, name = PlayerUnit(unit)
+    if not key then return end
+    local isDead = IsDead(unit)
+    if isDead == nil then return end
+    local was = dead[key]
+    dead[key] = isDead -- the same person under two tokens (raid1 and party1) only counts once
+    if not isDead or was ~= false or not Near(unit) then return end
+    if Blocked(ns.DEATH, key, GetTime()) then return end
+    local answers = ns.Answers(ns.DEATH, ns.Mood(key))
+    if #answers == 0 then return end
+    local answer, first = Pick(answers), FirstName(name)
+    Answer(key, first, answer, format("You %s %s (they died).", Label(answer), first), true)
 end
 
 ---------------------------------------------------------------------------
@@ -390,7 +435,7 @@ local function Help()
     Print("/reflex cd <sec> - between any two answers;  cd person <sec>;  cd pingpong <sec>")
     Print("/reflex list - what you answer to what")
     Print("/reflex set <emote> <answer1,answer2...>|default|none - this character's answers (set cold ... for rivals)")
-    Print("/reflex toggle <emote> - switch answering one emote on or off (also levelup; Questie's objective, item, quest, abandon, accept)")
+    Print("/reflex toggle <emote> - switch answering one emote on or off (also levelup, death; Questie's objective, item, quest, abandon, accept)")
     Print("/reflex reset - drop this character's own answers")
     Print("/reflex test <emote or emote line> [name] - what you'd do, sends nothing")
     Print("/reflex quiet - hide or show the (Reflex) chat echo;  /reflex config - options")
@@ -565,10 +610,13 @@ ev:SetScript("OnEvent", function(self, event, ...)
         return OnQuestie(...)
     elseif event == "UNIT_LEVEL" then
         return OnUnitLevel(...)
+    elseif event == "UNIT_HEALTH" or event == "UNIT_FLAGS" then
+        return OnUnitHealth(...)
     elseif event == "PLAYER_TARGET_CHANGED" then
         return Remember("target")
     elseif event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
-        return RememberGroup()
+        ForGroup(Remember)
+        return ForGroup(RememberDeath)
     end
     EzReflexDB = EzReflexDB or {}
     EzReflexCharDB = EzReflexCharDB or {}
@@ -583,8 +631,10 @@ ev:SetScript("OnEvent", function(self, event, ...)
         if EzReflexDB.emotes[token] == nil then EzReflexDB.emotes[token] = true end
     end
     ns.BuildSettings()
-    -- Level-ups don't depend on the client's language, and Questie's lines on the sender's, not yours.
+    -- Level-ups and deaths don't depend on the client's language, and Questie's lines on the sender's, not yours.
     self:RegisterEvent("UNIT_LEVEL")
+    self:RegisterEvent("UNIT_HEALTH")
+    self:RegisterEvent("UNIT_FLAGS")
     self:RegisterEvent("PLAYER_TARGET_CHANGED")
     self:RegisterEvent("GROUP_ROSTER_UPDATE")
     self:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -592,6 +642,6 @@ ev:SetScript("OnEvent", function(self, event, ...)
     if ns.LOCALES[GetLocale()] then
         self:RegisterEvent("CHAT_MSG_TEXT_EMOTE")
     else
-        Print("only knows English emote lines for now, so it only answers level-ups and Questie lines on this client.")
+        Print("only knows English emote lines for now, so it only answers level-ups, deaths and Questie lines on this client.")
     end
 end)

@@ -35,7 +35,7 @@ function ns.BuildSettings()
     Check("acquaintances", "Friends and rivals (EzAcquaintances)",
         "With EzAcquaintances loaded, people in its Book tagged rival, enemy, suspicious or liar get a cold answer (/glare, /snub, /rude...), and friends, allies and family a warmer one.")
 
-    Header("Your group")
+    Header("Your group and duels")
     for _, event in ipairs(ns.EVENTS) do
         local setting = Settings.RegisterAddOnSetting(category, "EZREFLEX_IN_" .. event.token, event.token, db.emotes,
             Settings.VarType.Boolean, event.title, true)
@@ -43,7 +43,7 @@ function ns.BuildSettings()
     end
 
     Header("Holding back")
-    Check("combat", "Not in combat", "Don't answer emotes while you're in combat. Level-ups, deaths and Questie lines are answered in combat anyway.")
+    Check("combat", "Not in combat", "Don't answer emotes while you're in combat. Level-ups, deaths, duels and Questie lines are answered in combat anyway.")
     Check("moving", "Not while moving", "Stay quiet while you move: most emotes don't play their animation on the run.")
     Slider("cooldown", "Cooldown", "Shortest time between any two answers.", 0, 60, 1, Seconds)
     Slider("personCooldown", "Per-person cooldown", "Shortest time before you answer the same person again.", 0, 300, 5, Seconds)

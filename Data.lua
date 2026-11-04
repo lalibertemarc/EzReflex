@@ -25,6 +25,7 @@ ns.EVENT_WAIT = 20                     -- seconds an answer to a group event wai
 -- echo: what they did, for the chat echo (%s = the quest).
 ns.LEVELUP = "LEVELUP"
 ns.DEATH = "DEATH"
+ns.DUELWON, ns.DUELLOST, ns.DUELFLED, ns.DUELWATCH = "DUELWON", "DUELLOST", "DUELFLED", "DUELWATCH"
 ns.EVENTS = {
     { token = "LEVELUP", label = "level-ups", names = { "levelup", "level", "ding" },
       what = "A level-up in your group or target", title = "Cheer level-ups",
@@ -32,6 +33,18 @@ ns.EVENTS = {
     { token = "DEATH", label = "deaths", names = { "death", "died", "dead" },
       what = "A group member dying", title = "Mourn the fallen",
       tip = "When someone in your group dies near you, your character gasps, cries or salutes them (with EzAcquaintances, friends are mourned and rivals laughed at). Change the answers with /reflex set death <answers>." },
+    { token = "DUELWON", label = "duels won", names = { "duelwon", "won", "win" },
+      what = "You winning a duel", title = "Duels you win",
+      tip = "When you win a duel, your character bows, salutes or flexes at the loser (with EzAcquaintances, a friend gets a hug, a rival a gloat). Change the answers with /reflex set won <answers>." },
+    { token = "DUELLOST", label = "duels lost", names = { "duellost", "lost", "lose" },
+      what = "You losing a duel", title = "Duels you lose",
+      tip = "When you lose a duel, your character salutes, bows or congratulates the winner (with EzAcquaintances, a rival gets a glare). Fleeing a duel yourself gets no answer. Change the answers with /reflex set lost <answers>." },
+    { token = "DUELFLED", label = "foes fleeing duels", names = { "duelfled", "fled" }, -- not "flee": that's an emote
+      what = "Your foe fleeing a duel", title = "Foes who flee a duel",
+      tip = "When someone runs out of a duel with you, your character clucks like a chicken or laughs at them. Change the answers with /reflex set fled <answers>." },
+    { token = "DUELWATCH", label = "duels watched", names = { "duelwatch", "watch", "duel" },
+      what = "A duel you watched", title = "Duels you watch",
+      tip = "When a duel near you ends, your character applauds or cheers the winner. With EzAcquaintances, a friend who lost is comforted instead, and a rival who won gets a /golfclap. Can be busy outside a city: switch it off here. Change the cheers with /reflex set watch <answers>." },
     { token = "OBJECTIVE", label = "objectives done", names = { "objective" }, echo = "finished an objective of %s",
       what = "A group member finishing a quest objective (Questie)", title = "Quest objectives (Questie)",
       tip = "When someone in your group running Questie finishes a quest objective near you, your character claps or nods. Questie sends these to your party unless they switched it off. Change the answers with /reflex set objective <answers>." },
@@ -198,7 +211,14 @@ ns.REACTIONS = {
     QUESTTAKE = { "NOD", "NOD", "READY" },
     OBJECTIVE = { "CLAP", "NOD", "CHEER" },
     QUESTITEM = { "GASP", "NOD", "CHEER" },
+    DUELWON = { "BOW", "BOW", "SALUTE", "FLEX", "VICTORY" },
+    DUELLOST = { "SALUTE", "SALUTE", "BOW", "CONGRATULATE", "GROAN" },
+    DUELFLED = { "CHICKEN", "CHICKEN", "LAUGH", "TAUNT" },
+    DUELWATCH = { "APPLAUD", "APPLAUD", "CHEER", "CLAP" },
 }
+
+-- Watching a friend (EzAcquaintances) lose a duel to someone who isn't one: you comfort the loser instead.
+ns.DUEL_CONSOLE = { "COMFORT", "COMFORT", "PAT", "HUG" }
 
 -- EzAcquaintances (optional, read only): people in your Book with these tags or relationships get the cold set
 -- for anything they do; warm people get WARM's answers where there are some, the normal ones otherwise.
@@ -218,6 +238,10 @@ ns.COLD_EVENTS = {
     QUESTTAKE = { "SHRUG" },
     OBJECTIVE = { "GOLFCLAP", "SHRUG" },
     QUESTITEM = { "SHRUG" },
+    DUELWON = { "FLEX", "FLEX", "LAUGH", "MOCK", "ROAR" },
+    DUELLOST = { "GLARE", "GLARE", "RUDE", "SPIT" },
+    DUELFLED = { "LAUGH", "MOCK", "CHICKEN" },
+    DUELWATCH = { "GOLFCLAP", "GOLFCLAP", "SHRUG" },
 }
 
 ns.WARM = {
@@ -235,4 +259,8 @@ ns.WARM = {
     DEATH = { "CRY", "CRY", "MOURN", "KNEEL" }, -- MOURN is left out where the client has no such emote
     QUESTDONE = { "CHEER", "HIGHFIVE", "HUG" },
     QUESTDROP = { "COMFORT", "SHRUG" },
+    DUELWON = { "HUG", "HIGHFIVE", "BOW" },
+    DUELLOST = { "CONGRATULATE", "HIGHFIVE", "HUG" },
+    DUELFLED = { "LAUGH", "GIGGLE", "POKE" },
+    DUELWATCH = { "CHEER", "CHEER", "HIGHFIVE" },
 }

@@ -426,6 +426,93 @@ local function OnQuestie(text, sender)
 end
 
 ---------------------------------------------------------------------------
+-- Duels. The server tells everyone nearby how a duel ended ("Bob has defeated Ann in a duel", "Ann has fled
+-- from Bob in a duel"), so EzReflex reads that system line in the game's own words (any client language):
+-- your own duels get an answer aimed at your foe, ones you watch a cheer for the winner.
+---------------------------------------------------------------------------
+-- "%1$s has defeated %2$s" -> anchored pattern and which argument each capture is (as EzChronicle's).
+function ns.FormatPattern(fmt)
+    if type(fmt) ~= "string" then return end
+    local order, auto = {}, 0
+    local p = fmt:gsub("%%(%d?)%$?([sd])", function(i, c)
+        if i ~= "" then
+            order[#order + 1] = tonumber(i)
+        else
+            auto = auto + 1
+            order[#order + 1] = auto
+        end
+        return c == "d" and "\002" or "\001"
+    end)
+    p = p:gsub("[%^%$%(%)%.%[%]%*%+%-%?]", "%%%0"):gsub("\001", "(.+)"):gsub("\002", "(%%d+)")
+    return { pat = "^" .. p .. "$", order = order }
+end
+
+-- The format's arguments in their own order, or nil when msg isn't it.
+local function Match(f, msg)
+    if not f then return end
+    local caps = { msg:match(f.pat) }
+    if #caps == 0 then return end
+    local args = {}
+    for i, n in ipairs(f.order) do args[n] = caps[i] end
+    return args
+end
+
+-- Both strings put the winner first and the loser second.
+local DUEL_KNOCKOUT = ns.FormatPattern(DUEL_WINNER_KNOCKOUT)
+local DUEL_RETREAT = ns.FormatPattern(DUEL_WINNER_RETREAT)
+
+-- Winner, loser and whether the loser fled, from a system line; nil when it isn't a duel's end.
+function ns.DuelResult(msg)
+    local a = Match(DUEL_KNOCKOUT, msg)
+    local fled = not a and Match(DUEL_RETREAT, msg)
+    a = a or fled
+    if a and a[1] and a[2] then return a[1], a[2], fled and true or false end
+end
+
+-- A unit EzReflex can measure this person's distance on, or nil (strangers usually have none).
+local function SeenUnit(key)
+    if PlayerUnit("target") == key then return "target" end
+    if PlayerUnit("mouseover") == key then return "mouseover" end
+    return GroupUnit(key)
+end
+
+-- Whom to answer, with what, and why (for the echo), for a duel's end; nil when there's nothing to say.
+local function DuelAnswer(winner, loser, fled)
+    local me, wKey, lKey = MyKey(), ns.Key(winner), ns.Key(loser)
+    local wFirst, lFirst = FirstName(winner), FirstName(loser)
+    if wKey == me then
+        local token = fled and ns.DUELFLED or ns.DUELWON
+        return token, lKey, lFirst, ns.Answers(token, ns.Mood(lKey)),
+            fled and "they fled from your duel" or "you beat them in a duel"
+    elseif lKey == me then
+        if fled then return end -- you ran: nothing to say
+        return ns.DUELLOST, wKey, wFirst, ns.Answers(ns.DUELLOST, ns.Mood(wKey)), "they beat you in a duel"
+    end
+    -- Watched. The line reaches everyone around; a duelist EzReflex can measure must be in sight and ~28 yd too.
+    for _, key in ipairs({ wKey, lKey }) do
+        local unit = SeenUnit(key)
+        if unit and not Near(unit) then return end
+    end
+    local wMood = ns.Mood(wKey)
+    if ns.Mood(lKey) == "warm" and wMood ~= "warm" then
+        return ns.DUELWATCH, lKey, lFirst, Known(ns.DUEL_CONSOLE),
+            format(fled and "they fled from a duel with %s" or "they lost a duel to %s", wFirst)
+    end
+    return ns.DUELWATCH, wKey, wFirst, ns.Answers(ns.DUELWATCH, wMood),
+        format(fled and "%s fled from their duel" or "they beat %s in a duel", lFirst)
+end
+
+local function OnSystem(msg)
+    if issecret(msg) or type(msg) ~= "string" then return end
+    local winner, loser, fled = ns.DuelResult(msg)
+    if not winner then return end
+    local token, key, first, answers, why = DuelAnswer(winner, loser, fled)
+    if not token or #answers == 0 or Blocked(token, key, GetTime()) then return end
+    local answer = Pick(answers)
+    Answer(key, first, answer, format("You %s %s (%s).", Label(answer), first, why), true)
+end
+
+---------------------------------------------------------------------------
 -- Slash commands
 ---------------------------------------------------------------------------
 local function Help()
@@ -435,7 +522,7 @@ local function Help()
     Print("/reflex cd <sec> - between any two answers;  cd person <sec>;  cd pingpong <sec>")
     Print("/reflex list - what you answer to what")
     Print("/reflex set <emote> <answer1,answer2...>|default|none - this character's answers (set cold ... for rivals)")
-    Print("/reflex toggle <emote> - switch answering one emote on or off (also levelup, death; Questie's objective, item, quest, abandon, accept)")
+    Print("/reflex toggle <emote> - switch answering one emote on or off (also levelup, death; duels: won, lost, fled, watch; Questie's objective, item, quest, abandon, accept)")
     Print("/reflex reset - drop this character's own answers")
     Print("/reflex test <emote or emote line> [name] - what you'd do, sends nothing")
     Print("/reflex quiet - hide or show the (Reflex) chat echo;  /reflex config - options")
@@ -608,6 +695,8 @@ ev:SetScript("OnEvent", function(self, event, ...)
         return OnTextEmote(text, sender, guid)
     elseif questieChat[event] then
         return OnQuestie(...)
+    elseif event == "CHAT_MSG_SYSTEM" then
+        return OnSystem(...)
     elseif event == "UNIT_LEVEL" then
         return OnUnitLevel(...)
     elseif event == "UNIT_HEALTH" or event == "UNIT_FLAGS" then
@@ -631,7 +720,8 @@ ev:SetScript("OnEvent", function(self, event, ...)
         if EzReflexDB.emotes[token] == nil then EzReflexDB.emotes[token] = true end
     end
     ns.BuildSettings()
-    -- Level-ups and deaths don't depend on the client's language, and Questie's lines on the sender's, not yours.
+    -- Level-ups, deaths and duels don't depend on the client's language, and Questie's lines on the sender's, not yours.
+    self:RegisterEvent("CHAT_MSG_SYSTEM")
     self:RegisterEvent("UNIT_LEVEL")
     self:RegisterEvent("UNIT_HEALTH")
     self:RegisterEvent("UNIT_FLAGS")
@@ -642,6 +732,6 @@ ev:SetScript("OnEvent", function(self, event, ...)
     if ns.LOCALES[GetLocale()] then
         self:RegisterEvent("CHAT_MSG_TEXT_EMOTE")
     else
-        Print("only knows English emote lines for now, so it only answers level-ups, deaths and Questie lines on this client.")
+        Print("only knows English emote lines for now, so it only answers level-ups, deaths, duels and Questie lines on this client.")
     end
 end)

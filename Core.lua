@@ -205,8 +205,13 @@ local sent = {}               -- key -> GetTime() you last emoted at them, by ha
 local heard = {}              -- key -> GetTime() they last emoted at you
 local pending                 -- an answer is waiting on its timer
 
+-- Forever can hand back the speed as a secret value (seen on a group member's level-up): then only falling counts.
 local function Moving()
-    return GetUnitSpeed("player") > 0 or (IsFalling and IsFalling())
+    local speed = GetUnitSpeed("player")
+    if not issecret(speed) and type(speed) == "number" and speed > 0 then return true end
+    if not IsFalling then return false end
+    local falling = IsFalling()
+    return not issecret(falling) and not not falling
 end
 
 -- Why you can't answer anyone right now, or nil; true as well when it's something that passes (combat, moving).

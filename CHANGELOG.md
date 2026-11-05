@@ -1,6 +1,6 @@
 # EzReflex
 
-## Unreleased
+## v1.0.0
 
 - **Answer in kind.** When a player does a text emote at you (`/bow`, `/wave`, `/hug`, `/rude`...), your character answers with an emote of its own after a short, human-looking pause: a bow for a bow, a blush for a kiss, `/welcome` for a thanks, a rude gesture right back. About 55 emotes are recognised, each with a few answers picked at random.
 - **Your character, your manners.** `/reflex set <emote> <answers>` gives this character its own answers (one can be polite, another rude); `/reflex list` shows them all, `/reflex reset` goes back to the defaults. Each emote can be switched off on the options page or with `/reflex toggle <emote>`.

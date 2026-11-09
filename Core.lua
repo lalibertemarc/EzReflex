@@ -156,10 +156,12 @@ end
 -- What to answer
 ---------------------------------------------------------------------------
 -- "cold" or "warm" from EzAcquaintances' Book for this character (read only), plus why; nil when neither.
-function ns.Mood(key)
+-- name: their full name when known. The book keys people by "first surname" (first names aren't unique in
+-- Forever), so it's asked through its API; a first name alone finds them only when nobody else has it.
+function ns.Mood(key, name)
     if not EzReflexDB.acquaintances then return end
-    local book = type(EzAcquaintancesCharDB) == "table" and EzAcquaintancesCharDB.people
-    local p = type(book) == "table" and book[key]
+    local api = EzAcquaintancesAPI
+    local p = api and api.Person and api.Person(name or key)
     if type(p) ~= "table" then return end
     local tags = type(p.tags) == "table" and p.tags or {}
     for tag in pairs(ns.COLD_TAGS) do
@@ -292,7 +294,7 @@ local function OnTextEmote(text, sender, guid)
     heard[key] = now
     if Blocked(token, key, now) then return end
     if math.random(100) > EzReflexDB.chance then return end
-    local answers = ns.Answers(token, ns.Mood(key))
+    local answers = ns.Answers(token, ns.Mood(key, sender))
     if #answers == 0 then return end
     local answer, name = Pick(answers), FirstName(sender)
     Answer(key, name, answer, format("You %s back at %s (they %s).", Label(answer), name, Label(token)))
@@ -307,10 +309,13 @@ local levels = {} -- key -> last level seen
 
 local function PlayerUnit(unit)
     if not UnitExists(unit) or not UnitIsPlayer(unit) or UnitIsUnit(unit, "player") then return end
-    local name, level = UnitName(unit), UnitLevel(unit)
+    local name, surname = UnitName(unit)
+    local level = UnitLevel(unit)
     if issecret(name) or issecret(level) or type(name) ~= "string" or type(level) ~= "number" then return end
     if name == "" or name == UNKNOWNOBJECT or level <= 0 then return end -- not loaded yet, or "??" level
-    return ns.Key(name), name, level
+    -- Full name for the book: the surname in Forever (the realm in Era, which the book drops).
+    local full = type(surname) == "string" and not issecret(surname) and surname ~= "" and name .. " " .. surname or name
+    return ns.Key(name), name, level, full
 end
 
 local function Remember(unit)
@@ -336,13 +341,13 @@ end
 
 local function OnUnitLevel(unit)
     if unit ~= "target" and not GroupToken(unit) then return end
-    local key, name, level = PlayerUnit(unit)
+    local key, name, level, full = PlayerUnit(unit)
     if not key then return end
     local old = levels[key]
     levels[key] = level -- the same person under two tokens (target and party1) only counts once
     if not old or level <= old or not Near(unit) then return end
     if Blocked(ns.LEVELUP, key, GetTime()) then return end
-    local answers = ns.Answers(ns.LEVELUP, ns.Mood(key))
+    local answers = ns.Answers(ns.LEVELUP, ns.Mood(key, full))
     if #answers == 0 then return end
     local answer, first = Pick(answers), FirstName(name)
     Answer(key, first, answer, format("You %s %s (level %d).", Label(answer), first, level), true)
@@ -375,7 +380,7 @@ end
 
 local function OnUnitHealth(unit)
     if not GroupToken(unit) then return end
-    local key, name = PlayerUnit(unit)
+    local key, name, _, full = PlayerUnit(unit)
     if not key then return end
     local isDead = IsDead(unit)
     if isDead == nil then return end
@@ -383,7 +388,7 @@ local function OnUnitHealth(unit)
     dead[key] = isDead -- the same person under two tokens (raid1 and party1) only counts once
     if not isDead or was ~= false or not Near(unit) then return end
     if Blocked(ns.DEATH, key, GetTime()) then return end
-    local answers = ns.Answers(ns.DEATH, ns.Mood(key))
+    local answers = ns.Answers(ns.DEATH, ns.Mood(key, full))
     if #answers == 0 then return end
     local answer, first = Pick(answers), FirstName(name)
     Answer(key, first, answer, format("You %s %s (they died).", Label(answer), first), true)
@@ -423,7 +428,7 @@ local function OnQuestie(text, sender)
     local unit = GroupUnit(key)
     if not unit or not Near(unit) then return end
     if Blocked(token, key, GetTime()) then return end
-    local answers = ns.Answers(token, ns.Mood(key))
+    local answers = ns.Answers(token, ns.Mood(key, sender))
     if #answers == 0 then return end
     local answer, first = Pick(answers), FirstName(sender)
     Answer(key, first, answer, format("You %s %s (%s).", Label(answer), first,
@@ -487,19 +492,19 @@ local function DuelAnswer(winner, loser, fled)
     local wFirst, lFirst = FirstName(winner), FirstName(loser)
     if wKey == me then
         local token = fled and ns.DUELFLED or ns.DUELWON
-        return token, lKey, lFirst, ns.Answers(token, ns.Mood(lKey)),
+        return token, lKey, lFirst, ns.Answers(token, ns.Mood(lKey, loser)),
             fled and "they fled from your duel" or "you beat them in a duel"
     elseif lKey == me then
         if fled then return end -- you ran: nothing to say
-        return ns.DUELLOST, wKey, wFirst, ns.Answers(ns.DUELLOST, ns.Mood(wKey)), "they beat you in a duel"
+        return ns.DUELLOST, wKey, wFirst, ns.Answers(ns.DUELLOST, ns.Mood(wKey, winner)), "they beat you in a duel"
     end
     -- Watched. The line reaches everyone around; a duelist EzReflex can measure must be in sight and ~28 yd too.
     for _, key in ipairs({ wKey, lKey }) do
         local unit = SeenUnit(key)
         if unit and not Near(unit) then return end
     end
-    local wMood = ns.Mood(wKey)
-    if ns.Mood(lKey) == "warm" and wMood ~= "warm" then
+    local wMood = ns.Mood(wKey, winner)
+    if ns.Mood(lKey, loser) == "warm" and wMood ~= "warm" then
         return ns.DUELWATCH, lKey, lFirst, Known(ns.DUEL_CONSOLE),
             format(fled and "they fled from a duel with %s" or "they lost a duel to %s", wFirst)
     end
@@ -606,7 +611,7 @@ local function Test(rest)
     end
     local key = sender and ns.Key(sender)
     local mood, why = nil, nil
-    if key then mood, why = ns.Mood(key) end
+    if key then mood, why = ns.Mood(key, sender) end
     local answers, from = ns.Answers(token, mood)
     local event = ns.events[token]
     Print(format("%s -> %s (%s)%s.", event and event.what or Label(token) .. " at you",

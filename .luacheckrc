@@ -26,5 +26,5 @@ read_globals = {
     "UnitIsPlayer", "UnitIsUnit", "UnitLevel", "UnitIsVisible", "CheckInteractDistance", "IsInRaid",
     "GetNumGroupMembers", "UNKNOWNOBJECT", "UnitIsFeignDeath", "DUEL_WINNER_KNOCKOUT", "DUEL_WINNER_RETREAT",
     -- Other addons (read only)
-    "EzAcquaintancesCharDB",
+    "EzAcquaintancesAPI",
 }

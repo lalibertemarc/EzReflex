@@ -1,5 +1,9 @@
 # EzReflex
 
+## v1.0.1
+
+- **Works with EzAcquaintances 1.1.1.** EzAcquaintances now keeps people by their full name, so two players who share a first name no longer share a page. EzReflex now looks them up the same way, so your friends still get warm answers and your rivals cold ones, and the right Grim gets the right one.
+
 ## v1.0.0
 
 - **Answer in kind.** When a player does a text emote at you (`/bow`, `/wave`, `/hug`, `/rude`...), your character answers with an emote of its own after a short, human-looking pause: a bow for a bow, a blush for a kiss, `/welcome` for a thanks, a rude gesture right back. About 55 emotes are recognised, each with a few answers picked at random.

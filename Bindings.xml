@@ -1,0 +1,3 @@
+<Bindings>
+	<Binding name="EZREFLEX_TOGGLE" category="EzReflex">EzReflex_Toggle()</Binding>
+</Bindings>

@@ -18,6 +18,7 @@ When another player does a text emote at you (`/bow`, `/wave`, `/hug`, `/rude`..
 | Command | |
 |---|---|
 | `/reflex on\|off` | answer emotes or not |
+| `/reflex toggle` | flip on/off in one go (also a key: Key Bindings > AddOns > EzReflex, or a click on EzReflex in Forever's addon drawer) |
 | `/reflex chance <0-100>` | how often you answer |
 | `/reflex cd <sec>`, `cd person <sec>`, `cd pingpong <sec>` | cooldowns |
 | `/reflex list` | what you answer to what |

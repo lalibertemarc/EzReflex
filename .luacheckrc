@@ -8,13 +8,19 @@ globals = {
     "SLASH_EZREFLEX1",
     "SLASH_EZREFLEX2",
     "SlashCmdList",
+    "BINDING_HEADER_EZREFLEX",
+    "BINDING_NAME_EZREFLEX_TOGGLE",
+    "EzReflex_Toggle",
+    "EzReflex_OnAddonCompartmentClick",
+    "EzReflex_OnAddonCompartmentEnter",
+    "EzReflex_OnAddonCompartmentLeave",
 }
 
 read_globals = {
     -- Lua / WoW string and table helpers
     "format", "strlower", "wipe",
     -- Frames & UI
-    "CreateFrame", "DEFAULT_CHAT_FRAME",
+    "CreateFrame", "DEFAULT_CHAT_FRAME", "GameTooltip",
     -- Settings panel
     "Settings", "CreateSettingsListSectionHeaderInitializer", "CreateSettingsButtonInitializer",
     "MinimalSliderWithSteppersMixin",

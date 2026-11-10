@@ -1,5 +1,9 @@
 # EzReflex
 
+## v1.1.0
+
+- **Quick off switch for RP scenes.** In the middle of a roleplay scene, an automatic `/cheer` or `/laugh` can ruin the mood. Turn EzReflex off in one press before the scene and back on after it: bind a key under Key Bindings > AddOns > EzReflex, type `/reflex toggle`, or click EzReflex in the addon drawer by the minimap (Forever; right-click opens the options). Off holds back every answer, level-ups, deaths, duels and quest cheers included, and drops one that was about to go out.
+
 ## v1.0.1
 
 - **Works with EzAcquaintances 1.1.1.** EzAcquaintances now keeps people by their full name, so two players who share a first name no longer share a page. EzReflex now looks them up the same way, so your friends still get warm answers and your rivals cold ones, and the right Grim gets the right one.

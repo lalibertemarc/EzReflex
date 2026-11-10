@@ -1,6 +1,9 @@
 -- EzReflex: when a player emotes at you (/bow, /wave, /hug...), your character answers with an emote of its own.
 local _, ns = ...
 
+BINDING_HEADER_EZREFLEX = "EzReflex"
+BINDING_NAME_EZREFLEX_TOGGLE = "Turn answers on or off"
+
 local function Print(msg)
     DEFAULT_CHAT_FRAME:AddMessage("|cff7fd4ffEzReflex|r: " .. msg)
 end
@@ -527,7 +530,7 @@ end
 ---------------------------------------------------------------------------
 local function Help()
     Print(format("%s, answering %d%% of emotes. Commands:", EzReflexDB.enabled and "On" or "Off", EzReflexDB.chance))
-    Print("/reflex on|off - answer emotes or not")
+    Print("/reflex on|off - answer emotes or not;  /reflex toggle - flip it (or bind a key: Key Bindings > AddOns > EzReflex)")
     Print("/reflex chance <0-100> - how often you answer")
     Print("/reflex cd <sec> - between any two answers;  cd person <sec>;  cd pingpong <sec>")
     Print("/reflex list - what you answer to what")
@@ -642,15 +645,54 @@ local function Cooldown(rest)
         pingPong = "Ping-pong guard" })[field], EzReflexDB[field]))
 end
 
+-- The master switch: off holds back every answer, group events too, and drops one already waiting on its timer
+-- (Answer rechecks StateBlocked when it fires). Through the options setting when it's built, so an open options
+-- page shows the change.
+function ns.SetEnabled(on)
+    if ns.enabledSetting then ns.enabledSetting:SetValue(on) else EzReflexDB.enabled = on end
+    if on then
+        Print("|cff40ff40On|r: you answer emotes aimed at you again.")
+    else
+        Print("|cffff4040Off|r: no answers at all until you turn it back on (same key, /reflex toggle or /reflex on).")
+    end
+end
+
+local function Toggle()
+    ns.SetEnabled(not EzReflexDB.enabled)
+end
+
+-- Key Bindings > AddOns > EzReflex (Bindings.xml).
+function EzReflex_Toggle()
+    if EzReflexDB then Toggle() end
+end
+
+-- Forever's addon drawer (named in the TOC; Classic Era has no drawer). Left = on/off, right = options.
+function EzReflex_OnAddonCompartmentClick(_, which)
+    if not EzReflexDB then return end
+    if which == "RightButton" then
+        if ns.settingsCategory then Settings.OpenToCategory(ns.settingsCategory:GetID()) end
+    else
+        Toggle()
+    end
+end
+
+function EzReflex_OnAddonCompartmentEnter(_, menuButton)
+    if not EzReflexDB then return end
+    GameTooltip:SetOwner(menuButton, "ANCHOR_LEFT")
+    GameTooltip:AddLine("EzReflex")
+    GameTooltip:AddLine(EzReflexDB.enabled and "|cff40ff40Answering emotes|r" or "|cffff4040Off: not answering|r")
+    GameTooltip:AddLine("Click: turn on or off", 1, 1, 1)
+    GameTooltip:AddLine("Right-click: options", 1, 1, 1)
+    GameTooltip:Show()
+end
+
+function EzReflex_OnAddonCompartmentLeave()
+    GameTooltip:Hide()
+end
+
 local COMMANDS = {
-    on = function()
-        EzReflexDB.enabled = true
-        Print("On: you answer emotes aimed at you.")
-    end,
-    off = function()
-        EzReflexDB.enabled = false
-        Print("Off.")
-    end,
+    on = function() ns.SetEnabled(true) end,
+    off = function() ns.SetEnabled(false) end,
     chance = function(rest)
         local n = tonumber(rest)
         if not n then return Print(format("You answer %d%% of emotes. Change with /reflex chance <0-100>.", EzReflexDB.chance)) end
@@ -661,8 +703,10 @@ local COMMANDS = {
     list = List,
     set = Set,
     toggle = function(rest)
-        local token = FindIncoming(Trim(rest))
-        if not token then return Print("Usage: /reflex toggle <emote>") end
+        rest = Trim(rest)
+        if rest == "" then return Toggle() end
+        local token = FindIncoming(rest)
+        if not token then return Print("No emote called " .. rest .. ". /reflex toggle alone turns EzReflex on or off.") end
         EzReflexDB.emotes[token] = EzReflexDB.emotes[token] == false
         Print(format("Answers to %s: %s.", Label(token), EzReflexDB.emotes[token] and "on" or "off"))
     end,

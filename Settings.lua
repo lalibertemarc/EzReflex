@@ -29,7 +29,14 @@ function ns.BuildSettings()
     local function Seconds(value) return format("%ds", value) end
 
     Header("Answering")
-    Check("enabled", "Answer emotes", "When a player does a text emote at you (/bow, /wave, /hug...), your character answers with one of its own.")
+    ns.enabledSetting = Register("enabled", Settings.VarType.Boolean, "Answer emotes")
+    Settings.CreateCheckbox(category, ns.enabledSetting,
+        "When a player does a text emote at you (/bow, /wave, /hug...), your character answers with one of its own. "
+        .. "Off holds back every answer, group events and duels too. Flip it quickly in a scene with a key (below), /reflex toggle or a click in the addon drawer.")
+    -- No inline binding rows or search tags: they taint the options search in Forever.
+    layout:AddInitializer(CreateSettingsButtonInitializer("Quick on/off key", "Key Bindings",
+        function() Settings.OpenToCategory(Settings.KEYBINDINGS_CATEGORY_ID, "EzReflex") end,
+        "Bind a key to turn EzReflex on or off, in the EzReflex section of the Key Bindings page.", false))
     Slider("chance", "Chance", "How often you answer an emote aimed at you.", 0, 100, 5, Percent)
     Check("echo", "Chat echo", "Prints \"(Reflex) You /bow back at Bob.\" in your chat (only you see it), so you know it was EzReflex.")
     Check("acquaintances", "Friends and rivals (EzAcquaintances)",

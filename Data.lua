@@ -26,6 +26,9 @@ ns.EVENT_WAIT = 20                     -- seconds an answer to a group event wai
 ns.LEVELUP = "LEVELUP"
 ns.DEATH = "DEATH"
 ns.DUELWON, ns.DUELLOST, ns.DUELFLED, ns.DUELWATCH = "DUELWON", "DUELLOST", "DUELFLED", "DUELWATCH"
+ns.BUFFED = "BUFFED"
+ns.BUFF_MIN = 120  -- seconds an aura must last to count as a buff worth thanking (skips heal-over-time, shields)
+ns.BUFF_GAP = 600  -- seconds before you thank the same person for a buff again
 ns.EVENTS = {
     { token = "LEVELUP", label = "level-ups", names = { "levelup", "level", "ding" },
       what = "A level-up in your group or target", title = "Cheer level-ups",
@@ -45,6 +48,9 @@ ns.EVENTS = {
     { token = "DUELWATCH", label = "duels watched", names = { "duelwatch", "watch", "duel" },
       what = "A duel you watched", title = "Duels you watch",
       tip = "When a duel near you ends, your character applauds or cheers the winner. With EzAcquaintances, a friend who lost is comforted instead, and a rival who won gets a /golfclap. Can be busy outside a city: switch it off here. Change the cheers with /reflex set watch <answers>." },
+    { token = "BUFFED", label = "buffs received", names = { "buffed", "buff", "buffs" },
+      what = "A player buffing you", title = "Thank buffs",
+      tip = "When another player buffs you (blessings, Fortitude, Arcane Intellect...), your character thanks or bows to them (with EzAcquaintances, a friend may get a smile or a hug, a rival a grudging nod). Short effects like heals over time don't count, and each person is thanked once every ten minutes. Only buffs from your target, group or a visible player are seen in Forever; Classic Era sees any player in range. Not in combat. Change the answers with /reflex set buffed <answers>." },
     { token = "OBJECTIVE", label = "objectives done", names = { "objective" }, echo = "finished an objective of %s",
       what = "A group member finishing a quest objective (Questie)", title = "Quest objectives (Questie)",
       tip = "When someone in your group running Questie finishes a quest objective near you, your character claps or nods. Questie sends these to your party unless they switched it off. Change the answers with /reflex set objective <answers>." },
@@ -206,6 +212,7 @@ ns.REACTIONS = {
     SNUB = { "SHRUG", "SNUB" },
     LEVELUP = { "CONGRATULATE", "CONGRATULATE", "CHEER", "APPLAUD" },
     DEATH = { "GASP", "GASP", "CRY", "SIGH", "SALUTE" },
+    BUFFED = { "THANK", "THANK", "BOW", "NOD", "SALUTE" },
     QUESTDONE = { "CHEER", "CHEER", "CONGRATULATE", "APPLAUD" },
     QUESTDROP = { "SHRUG", "SHRUG", "SIGH", "PITY" },
     QUESTTAKE = { "NOD", "NOD", "READY" },
@@ -233,6 +240,7 @@ ns.COLD = { "GLARE", "GLARE", "SNUB", "ROLLEYES", "SCOFF", "RUDE" }
 ns.COLD_EVENTS = {
     LEVELUP = { "GOLFCLAP", "GOLFCLAP", "SHRUG" },
     DEATH = { "LAUGH", "LAUGH", "POINT", "GIGGLE" },
+    BUFFED = { "NOD", "SHRUG", "SNUB" },
     QUESTDONE = { "GOLFCLAP", "GOLFCLAP", "SHRUG" },
     QUESTDROP = { "LAUGH", "GOLFCLAP" },
     QUESTTAKE = { "SHRUG" },
@@ -257,6 +265,7 @@ ns.WARM = {
     BYE = { "BYE", "HUG" },
     LEVELUP = { "CHEER", "CONGRATULATE", "HUG" },
     DEATH = { "CRY", "CRY", "MOURN", "KNEEL" }, -- MOURN is left out where the client has no such emote
+    BUFFED = { "THANK", "SMILE", "HUG", "BOW" },
     QUESTDONE = { "CHEER", "HIGHFIVE", "HUG" },
     QUESTDROP = { "COMFORT", "SHRUG" },
     DUELWON = { "HUG", "HIGHFIVE", "BOW" },

@@ -1,5 +1,9 @@
 # EzReflex
 
+## v1.2.0
+
+- **Thanks whoever buffs you.** When another player buffs you (a blessing, Fortitude, Arcane Intellect...), your character thanks them with `/thank`, a bow, a nod or a salute; a friend (EzAcquaintances) may get a smile or a hug, a rival a grudging nod or a snub. Heals over time and shields don't count, it stays quiet in combat, and each person is thanked once every ten minutes. In Forever it sees buffs from your target, your group and players in sight; Classic Era sees any player in range. Switch it off with "Thank buffs" on the options page or `/reflex toggle buffed`; `/reflex set buffed <answers>` picks your own.
+
 ## v1.1.0
 
 - **Quick off switch for RP scenes.** In the middle of a roleplay scene, an automatic `/cheer` or `/laugh` can ruin the mood. Turn EzReflex off in one press before the scene and back on after it: bind a key under Key Bindings > AddOns > EzReflex, type `/reflex toggle`, or click EzReflex in the addon drawer by the minimap (Forever; right-click opens the options). Off holds back every answer, level-ups, deaths, duels and quest cheers included, and drops one that was about to go out.

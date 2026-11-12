@@ -27,7 +27,7 @@ read_globals = {
     -- Namespaced APIs
     "C_ChatInfo", "C_Timer", "issecretvalue",
     -- Global APIs
-    "GetBuildInfo", "GetLocale", "GetTime", "GetUnitSpeed", "IsFalling", "InCombatLockdown",
+    "GetBuildInfo", "GetLocale", "CombatLogGetCurrentEventInfo", "UnitGUID", "GetTime", "GetUnitSpeed", "IsFalling", "InCombatLockdown",
     "UnitAffectingCombat", "UnitIsDeadOrGhost", "UnitExists", "UnitName", "DoEmote", "MAXEMOTEINDEX",
     "UnitIsPlayer", "UnitIsUnit", "UnitLevel", "UnitIsVisible", "CheckInteractDistance", "IsInRaid",
     "GetNumGroupMembers", "UNKNOWNOBJECT", "UnitIsFeignDeath", "DUEL_WINNER_KNOCKOUT", "DUEL_WINNER_RETREAT",

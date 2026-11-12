@@ -398,6 +398,54 @@ local function OnUnitHealth(unit)
 end
 
 ---------------------------------------------------------------------------
+-- Buffs. UNIT_AURA's added auras name the caster's unit when the game has one for them (your target, group,
+-- mouseover); in Forever the data can be secret, so every field is read through Readable. Era also sees the
+-- combat log, so any player in range counts there. Only long effects count (not heals over time or shields),
+-- never in combat, and each person is thanked once per ns.BUFF_GAP.
+---------------------------------------------------------------------------
+local thanked = {} -- key -> GetTime() you last answered a buff from them
+
+local function Readable(v)
+    if not issecret(v) then return v end
+end
+
+local function OnBuff(key, name, full)
+    local now = GetTime()
+    if key == MyKey() or (thanked[key] and now - thanked[key] < ns.BUFF_GAP) then return end
+    if InCombatLockdown() or UnitAffectingCombat("player") then return end
+    if Blocked(ns.BUFFED, key, now) then return end
+    local answers = ns.Answers(ns.BUFFED, ns.Mood(key, full))
+    if #answers == 0 then return end
+    thanked[key] = now
+    local answer, first = Pick(answers), FirstName(name)
+    Answer(key, first, answer, format("You %s %s (they buffed you).", Label(answer), first), true)
+end
+
+local function OnAura(unit, info)
+    if unit ~= "player" or type(info) ~= "table" or issecret(info) then return end
+    local added = info.addedAuras
+    if type(added) ~= "table" or issecret(added) then return end
+    for _, a in ipairs(added) do
+        if type(a) == "table" and not issecret(a) and Readable(a.isHelpful) then
+            local src, duration = Readable(a.sourceUnit), Readable(a.duration)
+            if type(src) == "string" and src ~= "player" and type(duration) == "number" and duration >= ns.BUFF_MIN then
+                local key, name, _, full = PlayerUnit(src)
+                if key and UnitIsVisible(src) then return OnBuff(key, name, full) end
+            end
+        end
+    end
+end
+
+-- Era only (the combat log is restricted in Forever).
+local function OnCombatLog()
+    local _, sub, _, srcGUID, srcName, _, _, dstGUID, _, _, _, _, _, _, auraType = CombatLogGetCurrentEventInfo()
+    if sub ~= "SPELL_AURA_APPLIED" or auraType ~= "BUFF" or dstGUID ~= UnitGUID("player") then return end
+    if type(srcGUID) ~= "string" or srcGUID == dstGUID or not srcGUID:find("^Player") then return end
+    if type(srcName) ~= "string" or srcName == "" then return end
+    OnBuff(ns.Key(srcName), srcName, srcName)
+end
+
+---------------------------------------------------------------------------
 -- Questie's group announces. Questie sends real party/raid chat lines for objectives finished, quest-starting
 -- items, quests taken, turned in and abandoned; EzReflex answers the ones from group members near you.
 ---------------------------------------------------------------------------
@@ -535,7 +583,7 @@ local function Help()
     Print("/reflex cd <sec> - between any two answers;  cd person <sec>;  cd pingpong <sec>")
     Print("/reflex list - what you answer to what")
     Print("/reflex set <emote> <answer1,answer2...>|default|none - this character's answers (set cold ... for rivals)")
-    Print("/reflex toggle <emote> - switch answering one emote on or off (also levelup, death; duels: won, lost, fled, watch; Questie's objective, item, quest, abandon, accept)")
+    Print("/reflex toggle <emote> - switch answering one emote on or off (also levelup, death, buffed; duels: won, lost, fled, watch; Questie's objective, item, quest, abandon, accept)")
     Print("/reflex reset - drop this character's own answers")
     Print("/reflex test <emote or emote line> [name] - what you'd do, sends nothing")
     Print("/reflex quiet - hide or show the (Reflex) chat echo;  /reflex config - options")
@@ -751,6 +799,10 @@ ev:SetScript("OnEvent", function(self, event, ...)
         return OnQuestie(...)
     elseif event == "CHAT_MSG_SYSTEM" then
         return OnSystem(...)
+    elseif event == "UNIT_AURA" then
+        return OnAura(...)
+    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
+        return OnCombatLog()
     elseif event == "UNIT_LEVEL" then
         return OnUnitLevel(...)
     elseif event == "UNIT_HEALTH" or event == "UNIT_FLAGS" then
@@ -777,6 +829,8 @@ ev:SetScript("OnEvent", function(self, event, ...)
     -- Level-ups, deaths and duels don't depend on the client's language, and Questie's lines on the sender's, not yours.
     self:RegisterEvent("CHAT_MSG_SYSTEM")
     self:RegisterEvent("UNIT_LEVEL")
+    self:RegisterUnitEvent("UNIT_AURA", "player")
+    if ns.ERA then self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED") end
     self:RegisterEvent("UNIT_HEALTH")
     self:RegisterEvent("UNIT_FLAGS")
     self:RegisterEvent("PLAYER_TARGET_CHANGED")

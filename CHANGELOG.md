@@ -1,5 +1,9 @@
 # EzReflex
 
+## v1.2.1
+
+- Listed under **Roleplay** in the game's AddOns list, next to other roleplay addons.
+
 ## v1.2.0
 
 - **Thanks whoever buffs you.** When another player buffs you (a blessing, Fortitude, Arcane Intellect...), your character thanks them with `/thank`, a bow, a nod or a salute; a friend (EzAcquaintances) may get a smile or a hug, a rival a grudging nod or a snub. Heals over time and shields don't count, it stays quiet in combat, and each person is thanked once every ten minutes. In Forever it sees buffs from your target, your group and players in sight; Classic Era sees any player in range. Switch it off with "Thank buffs" on the options page or `/reflex toggle buffed`; `/reflex set buffed <answers>` picks your own.

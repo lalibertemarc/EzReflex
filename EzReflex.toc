@@ -18,7 +18,7 @@
 ## SavedVariables: EzReflexDB
 ## SavedVariablesPerCharacter: EzReflexCharDB
 ## X-Curse-Project-ID: 1785046
-## OptionalDeps: EzAcquaintances
+## OptionalDeps: EzAcquaintances, totalRP3
 ## AddonCompartmentFunc: EzReflex_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: EzReflex_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: EzReflex_OnAddonCompartmentLeave

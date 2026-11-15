@@ -161,7 +161,7 @@ end
 -- "cold" or "warm" from EzAcquaintances' Book for this character (read only), plus why; nil when neither.
 -- name: their full name when known. The book keys people by "first surname" (first names aren't unique in
 -- Forever), so it's asked through its API; a first name alone finds them only when nobody else has it.
-function ns.Mood(key, name)
+local function BookMood(key, name)
     if not EzReflexDB.acquaintances then return end
     local api = EzAcquaintancesAPI
     local p = api and api.Person and api.Person(name or key)
@@ -175,6 +175,101 @@ function ns.Mood(key, name)
         if tags[tag] then return "warm", tag end
     end
     if ns.WARM_RELS[p.rel] then return "warm", p.rel end
+end
+
+-- Total RP 3 (optional, read only). TRP3 keeps the relation you set per profile of theirs, in your current
+-- TRP3 profile; people are found by TRP3's own character ID: "First Surname" in Forever, "Name-Realm" in Era.
+-- Every call into it is pcall'd: it's someone else's addon and may not be set up yet.
+local function Trp3()
+    local api = TRP3_API
+    local reg = type(api) == "table" and api.register
+    local rel = type(reg) == "table" and reg.relation
+    if type(rel) == "table" and rel.getRelation and rel.getRelationList and reg.getUnitIDProfileID then
+        return api, reg, rel
+    end
+end
+
+-- TRP3's character ID for a name from chat or a unit ("First Surname"; Era: "Name-Realm", or "Name Realm" as
+-- PlayerUnit builds it, or a bare name on your realm).
+local function Trp3ID(name)
+    if type(name) ~= "string" or name == "" or issecret(name) then return end
+    if ns.ERA then
+        local first, realm = name:match("^([^%s%-]+)[%s%-]*(.*)$")
+        if not first then return end
+        name = realm ~= "" and first .. "-" .. realm or first
+    end
+    local util = TRP3_NameUtil
+    if type(util) == "table" and util.GetQualifiedNameFromString then
+        local ok, id = pcall(util.GetQualifiedNameFromString, name)
+        if ok and type(id) == "string" then return id end
+        return
+    end
+    return name
+end
+
+-- A relation's name as TRP3 shows it ("Friend", or what you called your own).
+local function Trp3Label(info)
+    if type(info.name) == "string" and info.name ~= "" then return info.name end
+    local loc = TRP3_API and TRP3_API.loc
+    if type(loc) == "table" and loc.GetText then
+        local ok, text = pcall(loc.GetText, loc, "REG_RELATION_" .. info.id)
+        if ok and type(text) == "string" and text ~= "" then return text end
+    end
+    return info.id:sub(1, 1) .. info.id:sub(2):lower()
+end
+
+-- What a relation means to EzReflex: "warm", "cold" or "none", and whether it's your own choice.
+function ns.Trp3MoodOf(info)
+    local own = EzReflexDB.trpMoods and EzReflexDB.trpMoods[info.id]
+    if own then return own, true end
+    if ns.TRP3_COLD[info.id] then return "cold" end
+    if ns.TRP3_WARM[info.id] then return "warm" end
+    if type(info.name) == "string" then
+        local warm
+        for word in info.name:lower():gmatch("%a+") do
+            if ns.TRP3_COLD_WORDS[word] then return "cold" end
+            warm = warm or ns.TRP3_WARM_WORDS[word]
+        end
+        if warm then return "warm" end
+    end
+    return "none"
+end
+
+local function Trp3Mood(name)
+    if not EzReflexDB.trp then return end
+    local _, reg, rel = Trp3()
+    local id = reg and Trp3ID(name)
+    if not id then return end
+    local ok, profileID = pcall(reg.getUnitIDProfileID, id)
+    if not ok or not profileID then return end
+    local ok2, info = pcall(rel.getRelation, profileID)
+    if not ok2 or type(info) ~= "table" or type(info.id) ~= "string" or info.id == "NONE" then return end
+    local mood = ns.Trp3MoodOf(info)
+    if mood ~= "none" then return mood, Trp3Label(info) .. " (Total RP 3)" end
+end
+
+-- Cold from either source wins, then warm from either.
+function ns.Mood(key, name)
+    local bMood, bWhy = BookMood(key, name)
+    if bMood == "cold" then return bMood, bWhy end
+    local tMood, tWhy = Trp3Mood(name or key)
+    if tMood == "cold" or not bMood then return tMood, tWhy end
+    return bMood, bWhy
+end
+
+-- TRP3's relations in its own order, with what each means here; nil when TRP3 isn't loaded.
+local function Trp3Relations()
+    local _, _, rel = Trp3()
+    if not rel then return end
+    local ok, list = pcall(rel.getRelationList, true)
+    if not ok or type(list) ~= "table" then return end
+    local out = {}
+    for _, info in ipairs(list) do
+        if type(info) == "table" and type(info.id) == "string" and info.id ~= "NONE" then
+            out[#out + 1] = info
+        end
+    end
+    return out
 end
 
 -- Answers to an incoming emote, and where they come from.
@@ -586,6 +681,7 @@ local function Help()
     Print("/reflex toggle <emote> - switch answering one emote on or off (also levelup, death, buffed; duels: won, lost, fled, watch; Questie's objective, item, quest, abandon, accept)")
     Print("/reflex reset - drop this character's own answers")
     Print("/reflex test <emote or emote line> [name] - what you'd do, sends nothing")
+    Print("/reflex trp [on|off] - Total RP 3 relations and what each means;  trp <relation> warm|cold|none|default")
     Print("/reflex quiet - hide or show the (Reflex) chat echo;  /reflex config - options")
 end
 
@@ -601,7 +697,7 @@ local function List()
     end
     for _, token in ipairs(ns.incoming) do Line(token) end
     for _, event in ipairs(ns.EVENTS) do Line(event.token) end
-    Print("Rivals and enemies (EzAcquaintances): " .. Labels(Known(EzReflexCharDB.cold or ns.COLD)))
+    Print("Rivals and enemies (EzAcquaintances, Total RP 3): " .. Labels(Known(EzReflexCharDB.cold or ns.COLD)))
 end
 ns.List = List
 
@@ -647,7 +743,7 @@ end
 local function Test(rest)
     rest = Trim(rest)
     if rest == "" then return Print("Usage: /reflex test <emote or a line like \"Bob bows before you.\"> [name]") end
-    local first, name = rest:match("^(%S+)%s*(%S*)$")
+    local first, name = rest:match("^(%S+)%s*(.-)$") -- name may be "First Surname"
     local token = first and FindIncoming(first)
     local sender
     if token then
@@ -709,6 +805,42 @@ local function Toggle()
     ns.SetEnabled(not EzReflexDB.enabled)
 end
 
+local MOOD_TEXT = { warm = "|cff40ff40warm|r", cold = "|cff6fa8ffcold|r", none = "normal answers" }
+
+-- /reflex trp: list TRP3's relations and what each means here; /reflex trp <relation> warm|cold|none|default.
+local function Trp(rest)
+    local list = Trp3Relations()
+    if not list then return Print("Total RP 3 isn't loaded (or not ready yet).") end
+    rest = Trim(rest)
+    if rest == "" then
+        Print(format("Total RP 3 relations (%s):", EzReflexDB.trp and "on" or "|cffff4040off|r, /reflex trp on"))
+        for _, info in ipairs(list) do
+            local mood, own = ns.Trp3MoodOf(info)
+            Print(format("  %s -> %s%s", Trp3Label(info), MOOD_TEXT[mood], own and " |cff7fd4ff(yours)|r" or ""))
+        end
+        return Print("Change one with /reflex trp <relation> warm|cold|none|default.")
+    end
+    local lower = rest:lower()
+    if lower == "on" or lower == "off" then
+        EzReflexDB.trp = lower == "on"
+        if ns.trpSetting then ns.trpSetting:SetValue(EzReflexDB.trp) end
+        return Print("Total RP 3 relations " .. (EzReflexDB.trp and "on." or "off."))
+    end
+    local what, mood = lower:match("^(.-)%s+(%a+)$")
+    if not (mood == "warm" or mood == "cold" or mood == "none" or mood == "default") then
+        return Print("Usage: /reflex trp <relation> warm|cold|none|default")
+    end
+    for _, info in ipairs(list) do
+        if Trp3Label(info):lower() == what or info.id:lower() == what then
+            EzReflexDB.trpMoods = EzReflexDB.trpMoods or {}
+            EzReflexDB.trpMoods[info.id] = mood ~= "default" and mood or nil
+            return Print(format("%s -> %s.", Trp3Label(info), MOOD_TEXT[(ns.Trp3MoodOf(info))]))
+        end
+    end
+    Print("No Total RP 3 relation called \"" .. what .. "\". /reflex trp lists them.")
+end
+ns.Trp = Trp
+
 -- Key Bindings > AddOns > EzReflex (Bindings.xml).
 function EzReflex_Toggle()
     if EzReflexDB then Toggle() end
@@ -764,6 +896,7 @@ local COMMANDS = {
         Print("This character's own answers are gone; back to the defaults.")
     end,
     test = Test,
+    trp = Trp,
     quiet = function()
         EzReflexDB.echo = not EzReflexDB.echo
         Print("Chat echo " .. (EzReflexDB.echo and "on." or "off."))

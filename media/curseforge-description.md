@@ -39,6 +39,8 @@ These go out in combat too, and wait a few seconds while you're moving instead o
 
 With **EzAcquaintances** loaded, EzReflex knows who people are to you. Someone tagged rival, enemy, suspicious or liar in your Book gets a cold answer: a glare, a snub, an eye roll. Friends, allies and family get a warmer one, like a hug. Watch a friend lose a duel to a stranger and your character comforts the friend instead of cheering the stranger. A rival who wins gets a slow golf clap.
 
+**Total RP 3** works the same way: the relation you set on someone's TRP3 profile counts. Unfriendly gets the cold answers; Friend, Love and Family the warm ones. Relations you made yourself in TRP3 are guessed from their name, and `/reflex trp` lets you set each one.
+
 ## It knows when to stop
 
 - A short cooldown between answers, and a longer one per person.

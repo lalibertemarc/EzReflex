@@ -13,6 +13,7 @@ ns.DEFAULTS = {
     moving = true,         -- stay quiet while moving (most emotes don't animate on the run)
     echo = true,           -- "(Reflex) You /bow back at Bob." in your chat
     acquaintances = true,  -- warm/cold answers from EzAcquaintances tags, when it's loaded
+    trp = true,            -- warm/cold answers from Total RP 3 relations, when it's loaded
 }
 
 ns.DELAY_MIN, ns.DELAY_MAX = 0.6, 1.5 -- seconds before answering, picked at random so it looks human
@@ -234,6 +235,24 @@ ns.COLD_TAGS = { rival = true, enemy = true, suspicious = true, liar = true }
 ns.COLD_RELS = { rival = true, enemy = true }
 ns.WARM_TAGS = { friend = true, ally = true, family = true, flirt = true }
 ns.WARM_RELS = { friend = true, ["close friend"] = true, ally = true, family = true, sweetheart = true }
+
+-- Total RP 3 (optional, read only): the relation you set on their profile. Its built-in relation IDs; NEUTRAL,
+-- BUSINESS and NONE get the normal answers. Relations you made yourself in TRP3 are guessed from whole words of
+-- their name (TRP3_WARM_WORDS/TRP3_COLD_WORDS, cold checked first); /reflex trp <relation> warm|cold|none overrides
+-- any of them (EzReflexDB.trpMoods[id]).
+ns.TRP3_WARM = { FRIEND = true, LOVE = true, FAMILY = true }
+ns.TRP3_COLD = { UNFRIENDLY = true }
+ns.TRP3_WARM_WORDS = {
+    friend = true, friends = true, ally = true, allies = true, love = true, lover = true, beloved = true,
+    family = true, kin = true, sister = true, brother = true, sibling = true, mother = true, father = true,
+    son = true, daughter = true, cousin = true, spouse = true, wife = true, husband = true, partner = true,
+    sweetheart = true, crush = true, flirt = true, mentor = true, student = true, companion = true, comrade = true,
+}
+ns.TRP3_COLD_WORDS = {
+    enemy = true, enemies = true, rival = true, rivals = true, nemesis = true, foe = true, hate = true,
+    hated = true, unfriendly = true, hostile = true, suspicious = true, suspect = true, distrust = true,
+    distrusted = true, liar = true, traitor = true, ex = true,
+}
 
 ns.COLD = { "GLARE", "GLARE", "SNUB", "ROLLEYES", "SCOFF", "RUDE" }
 -- A rival's group events, unless you set your own cold set.

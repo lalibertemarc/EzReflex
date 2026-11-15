@@ -41,6 +41,13 @@ function ns.BuildSettings()
     Check("echo", "Chat echo", "Prints \"(Reflex) You /bow back at Bob.\" in your chat (only you see it), so you know it was EzReflex.")
     Check("acquaintances", "Friends and rivals (EzAcquaintances)",
         "With EzAcquaintances loaded, people in its Book tagged rival, enemy, suspicious or liar get a cold answer (/glare, /snub, /rude...), and friends, allies and family a warmer one.")
+    ns.trpSetting = Register("trp", Settings.VarType.Boolean, "Friends and rivals (Total RP 3)")
+    Settings.CreateCheckbox(category, ns.trpSetting,
+        "With Total RP 3 loaded, the relation you set on someone's profile counts too: Unfriendly gets a cold answer, Friend, Love and Family a warmer one. "
+        .. "Relations you made yourself are guessed from their name (\"Rival\" cold, \"Old friend\" warm). "
+        .. "If EzAcquaintances and Total RP 3 disagree, cold wins.")
+    layout:AddInitializer(CreateSettingsButtonInitializer("Total RP 3 relations", "List in chat", function() ns.Trp("") end,
+        "Prints each of your Total RP 3 relations and what it means here. Change one with /reflex trp <relation> warm|cold|none|default.", false))
 
     Header("Your group and duels")
     for _, event in ipairs(ns.EVENTS) do

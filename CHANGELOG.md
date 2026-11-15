@@ -1,5 +1,9 @@
 # EzReflex
 
+## v1.3.0
+
+- **Knows your Total RP 3 relations.** With Total RP 3 loaded, the relation you set on someone's TRP3 profile now changes how your character answers them, just like EzAcquaintances tags do. Unfriendly gets a cold answer (`/glare`, `/snub`...), and Friend, Love and Family a warmer one; Neutral and Business get the usual answers. Relations you made yourself in TRP3 are guessed from their name ("Rival" is cold, "Old friend" warm). `/reflex trp` lists them, and `/reflex trp <relation> warm|cold|none` changes one. If EzAcquaintances and Total RP 3 disagree, cold wins. Switch it off with "Friends and rivals (Total RP 3)" on the options page or `/reflex trp off`.
+
 ## v1.2.1
 
 - Listed under **Roleplay** in the game's AddOns list, next to other roleplay addons.
